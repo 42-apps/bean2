@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>bean2 — everywhere you've been, on one map</title>
+<meta name="description" content="Tick off every country and territory you've been to. 257 places, a green map, a wishlist in purple, and a share link. Nothing leaves your browser.">
+<meta name="theme-color" content="#080e18">
+<meta property="og:title" content="bean2 — everywhere you've been">
+<meta property="og:description" content="Tick off every country and territory you've been to. 257 places, a share link, and nothing leaves your browser.">
+<meta property="og:type" content="website">
+<link rel="icon" href="icons/bean2.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon180.png">
+<link rel="stylesheet" href="css/bean2.css?v=202609121413">
+</head>
+<body>
+
+<header id="bar">
+  <a class="brand" href="./" aria-label="bean2 home">
+    <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+      <circle cx="24" cy="24" r="15" class="lg-o"/>
+      <path class="lg-g" d="M24 9a15 15 0 0 1 0 30 19 19 0 0 0 0-30z"/>
+      <ellipse cx="24" cy="24" rx="6.7" ry="15" class="lg-o"/>
+      <path class="lg-o" d="M9.6 19h28.8M9.6 29h28.8"/>
+      <circle cx="16.5" cy="15.5" r="3.3" class="lg-p"/>
+    </svg>
+    <span class="brand-txt">
+      <b>bean<i>2</i></b>
+      <small>everywhere you've been</small>
+    </span>
+  </a>
+
+  <div class="bar-mid">
+    <div id="searchWrap">
+      <svg class="mag" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
+      <input id="search" type="search" placeholder="Search 257 places…" autocomplete="off" spellcheck="false" aria-label="Search places">
+      <div id="searchResults" class="hidden" role="listbox"></div>
+    </div>
+  </div>
+
+  <div class="bar-right">
+    <div class="seg" role="group" aria-label="Map view">
+      <button id="viewGlobe" class="on" aria-pressed="true">Globe</button>
+      <button id="viewFlat" aria-pressed="false">Map</button>
+    </div>
+    <button class="btn primary" id="shareBtn">Share</button>
+    <button class="icon" id="menuBtn" aria-label="Menu" aria-haspopup="true">⋯</button>
+    <div id="menu" class="pop hidden" role="menu">
+      <button class="mi" data-act="about"><span>ℹ️</span>About &amp; what counts</button>
+      <button class="mi" data-act="help"><span>❓</span>How to use</button>
+      <div class="mi-sep"></div>
+      <button class="mi" data-act="export"><span>⬇️</span>Export my data</button>
+      <button class="mi" data-act="import"><span>⬆️</span>Import a backup</button>
+      <div class="mi-sep"></div>
+      <button class="mi danger" data-act="reset"><span>🗑</span>Clear everything</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section id="stage">
+    <div id="globeViz"></div>
+    <svg id="flatViz" class="hidden" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="World map"></svg>
+
+    <div id="legend">
+      <span class="lg been"><i></i>Been</span>
+      <span class="lg want"><i></i>Want to go</span>
+      <span class="lg none"><i></i>Not yet</span>
+    </div>
+
+    <div id="stageHint">Click any country or territory</div>
+    <button id="panelToggle" aria-label="Show my list">☰ <b id="ptCount">0</b></button>
+    <div id="tooltip" class="hidden" aria-hidden="true"></div>
+    <div id="mapMsg" class="hidden"></div>
+  </section>
+
+  <aside id="panel">
+    <div id="score">
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="r-bg" cx="60" cy="60" r="52"/>
+          <circle class="r-want" cx="60" cy="60" r="52" id="ringWant"/>
+          <circle class="r-been" cx="60" cy="60" r="52" id="ringBeen"/>
+        </svg>
+        <div class="ring-mid">
+          <b id="pctBig">0<small>%</small></b>
+          <span id="pctSub">of the world</span>
+        </div>
+      </div>
+      <div class="score-nums">
+        <div class="sn been"><b id="nBeen">0</b><span>been to</span></div>
+        <div class="sn want"><b id="nWant">0</b><span>want to go</span></div>
+        <div class="sn"><b id="nLeft">257</b><span>to go</span></div>
+        <div class="rank" id="rank">Pack your bags</div>
+      </div>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab on" data-tab="places" role="tab">Places</button>
+      <button class="tab" data-tab="timeline" role="tab">Timeline</button>
+      <button class="tab" data-tab="stats" role="tab">Stats</button>
+    </nav>
+
+    <div class="tab-body" id="tabPlaces">
+      <div class="filters">
+        <button class="chip on" data-filter="all">All</button>
+        <button class="chip" data-filter="been">Been</button>
+        <button class="chip" data-filter="want">Want</button>
+        <button class="chip" data-filter="todo">Not yet</button>
+        <span class="filters-sp"></span>
+        <button class="chip ghost" id="sortBtn" title="Change grouping">By region</button>
+      </div>
+      <div id="list" class="list"></div>
+    </div>
+
+    <div class="tab-body hidden" id="tabTimeline"></div>
+    <div class="tab-body hidden" id="tabStats"></div>
+  </aside>
+</main>
+
+<!-- floating place card -->
+<div id="detail" class="card hidden" role="dialog" aria-label="Place"></div>
+
+<!-- modal host -->
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box"><button class="modal-x" id="modalX" aria-label="Close">×</button><div id="modalBody"></div></div>
+</div>
+
+<div id="toast" class="hidden"></div>
+<input type="file" id="fileIn" accept="application/json" hidden>
+
+<script src="data/places.js?v=202609121413"></script>
+<script src="lib/globe.gl.min.js"></script>
+<script src="js/store.js?v=202609121413"></script>
+<script src="js/maps.js?v=202609121413"></script>
+<script src="js/app.js?v=202609121413"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 /* app.js — bean2 */
 (function () {
-  const VERSION = '0.1.3';
+  const VERSION = '0.1.4';
   const PLACES = window.BEAN2_PLACES || [];
   const BY_ID = Object.fromEntries(PLACES.map(p => [p.id, p]));
   const TOTAL = PLACES.length;
@@ -638,6 +638,13 @@
 
   renderAll();
   wire();
+
+  /* If load() could not read part of the saved map, say so rather than letting
+   * it look like the marks simply went missing. */
+  if (S.wasRescued()) {
+    setTimeout(() => toast('Some saved entries couldn\u2019t be read — the original is kept as a backup.'), 900);
+    console.warn('bean2: the map as it was found is kept under localStorage["' + S.rescuedKey + '"]');
+  }
 
   /* Two tabs each hold the whole map in memory and write all of it on every
    * change, so the last one to save wins. Following the other tab's write

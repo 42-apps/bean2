@@ -26,6 +26,11 @@ window.Bean2Store = (function () {
   }
 
   /* ── persistence ─────────────────────────────────────────────── */
+  // Someone's map can be years of travelling. If this build cannot make sense
+  // of every entry it finds, it keeps the original exactly as it was under a
+  // second key before carrying on — nothing is ever only in the version this
+  // build happens to understand.
+  let rescued = false;
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
@@ -35,9 +40,14 @@ window.Bean2Store = (function () {
           data = Object.assign(data, d);
           data.name = String(data.name || '').slice(0, 40);
           const clean = {};
-          for (const id in data.places) {
-            const p = cleanPlace(data.places[id]);
+          for (const id in d.places) {
+            const p = cleanPlace(d.places[id]);
             if (p) clean[id] = p;
+          }
+          if (JSON.stringify(clean) !== JSON.stringify(d.places)) {
+            rescued = true;
+            try { if (!localStorage.getItem(KEY + '.rescued')) localStorage.setItem(KEY + '.rescued', raw); }
+            catch (e) { /* no room for a copy; the original is still in memory */ }
           }
           data.places = clean;
         }
@@ -190,5 +200,6 @@ window.Bean2Store = (function () {
   }
 
   return { load, save, get, statusOf, yearOf, set, toggle, setYear, name, all, clear,
-           merge, encode, decode, toJSON, fromJSON, cleanPlace };
+           merge, encode, decode, toJSON, fromJSON, cleanPlace,
+           wasRescued: () => rescued, rescuedKey: KEY + '.rescued' };
 })();

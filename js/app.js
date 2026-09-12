@@ -1,6 +1,6 @@
 /* app.js — bean2 */
 (function () {
-  const VERSION = '0.1.2';
+  const VERSION = '0.1.3';
   const PLACES = window.BEAN2_PLACES || [];
   const BY_ID = Object.fromEntries(PLACES.map(p => [p.id, p]));
   const TOTAL = PLACES.length;
@@ -44,7 +44,7 @@
       <button id="gMerge">Add to mine</button>
       <button class="go" id="gMine">My map</button>`;
     document.body.insertBefore(bar, el('main'));
-    el('main').style.height = 'calc(100% - 58px - ' + bar.offsetHeight + 'px)';
+    document.body.classList.add('guest');
     $('#gMerge').addEventListener('click', () => {
       const added = S.merge(guest.places);
       leaveGuest();
@@ -54,8 +54,10 @@
   }
   function leaveGuest() {
     guest = null;
+    closeDetail();
     const bar = el('guest');
-    if (bar) { bar.remove(); el('main').style.height = ''; }
+    if (bar) bar.remove();
+    document.body.classList.remove('guest');
     history.replaceState(null, '', location.pathname);
     renderAll(); M.paint();
   }
@@ -133,11 +135,12 @@
       box.innerHTML = `<div class="empty">Nothing here yet.<br>${ui.filter === 'been' ? 'Tap a country on the map to add your first one.' : 'Try another filter.'}</div>`;
       return;
     }
+    const keyOf = p => (ui.group === 'region' ? p.region
+      : ui.group === 'status' ? STATUS_LABEL[p.status]
+      : 'All places');
     const groups = new Map();
     for (const p of rows) {
-      const key = ui.group === 'region' ? p.region
-        : ui.group === 'status' ? STATUS_LABEL[p.status]
-        : 'All places';
+      const key = keyOf(p);
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(p);
     }
@@ -148,8 +151,8 @@
     for (const key of order) {
       const list = groups.get(key).slice().sort((a, b) => a.name.localeCompare(b.name));
       const been = list.filter(p => d[p.id] && d[p.id].s === 'been').length;
-      const all = PLACES.filter(p => (ui.group === 'region' ? p.region : STATUS_LABEL[p.status]) === key).length;
-      html += `<div class="grp"><b>${esc(key)}</b><span class="bar"><i style="width:${(been / all * 100).toFixed(1)}%"></i></span><span>${been}/${all}</span></div>`;
+      const all = PLACES.filter(p => keyOf(p) === key).length;   // same key, or A–Z reads "2/0"
+      html += `<div class="grp"><b>${esc(key)}</b><span class="bar"><i style="width:${all ? (been / all * 100).toFixed(1) : 0}%"></i></span><span>${been}/${all}</span></div>`;
       for (const p of list) html += rowHTML(p, d[p.id]);
     }
     box.innerHTML = html;
@@ -161,7 +164,7 @@
     return `<div class="row ${s === 'been' ? 'is-been' : ''} ${ui.selected === p.id ? 'sel' : ''}" data-id="${p.id}" role="button" tabindex="0" aria-label="${esc(p.name)}${s === 'been' ? ', been there' : s === 'want' ? ', want to go' : ''}">
       <span class="fl">${p.flag || '🏳️'}</span>
       <span class="nm">${esc(p.name)}</span>
-      ${rec && rec.y ? `<span class="yr">${rec.y}</span>` : ''}${tag}
+      ${rec && rec.y ? `<span class="yr">${esc(rec.y)}</span>` : ''}${tag}
       <button class="mk been ${s === 'been' ? 'on' : ''}" data-mark="been" title="Been there">✓</button>
       <button class="mk want ${s === 'want' ? 'on' : ''}" data-mark="want" title="Want to go">★</button>
     </div>`;
@@ -190,7 +193,7 @@
       </div>
       <div class="d-facts">${facts.map(f => `<span class="fact">${f}</span>`).join('')}</div>
       ${p.note ? `<p class="d-note">${esc(p.note)}</p>` : ''}
-      ${guest ? `<p class="d-note">On this shared map: <b style="color:${rec.s === 'been' ? 'var(--been)' : rec.s === 'want' ? 'var(--want)' : 'var(--dim)'}">${rec.s === 'been' ? 'been here' + (rec.y ? ' in ' + rec.y : '') : rec.s === 'want' ? 'wants to go' : 'not yet'}</b>.</p>`
+      ${guest ? `<p class="d-note">On this shared map: <b style="color:${rec.s === 'been' ? 'var(--been)' : rec.s === 'want' ? 'var(--want)' : 'var(--dim)'}">${rec.s === 'been' ? 'been here' + (rec.y ? ' in ' + esc(rec.y) : '') : rec.s === 'want' ? 'wants to go' : 'not yet'}</b>.</p>`
       : `<div class="d-acts">
         <button class="act been ${rec.s === 'been' ? 'on' : ''}" data-act="been">✓ Been there</button>
         <button class="act want ${rec.s === 'want' ? 'on' : ''}" data-act="want">★ Want to go</button>
@@ -358,7 +361,7 @@
     if (!id) { tt.classList.add('hidden'); document.body.style.cursor = ''; return; }
     const p = BY_ID[id]; if (!p) return;
     const rec = live()[id];
-    tt.innerHTML = `${p.flag || '🏳️'} ${esc(p.name)}<span class="tt-s">${rec ? (rec.s === 'been' ? '✓ been' + (rec.y ? ' · ' + rec.y : '') : '★ want to go') : 'not yet'}</span>`;
+    tt.innerHTML = `${p.flag || '🏳️'} ${esc(p.name)}<span class="tt-s">${rec ? (rec.s === 'been' ? '✓ been' + (rec.y ? ' · ' + esc(rec.y) : '') : '★ want to go') : 'not yet'}</span>`;
     tt.classList.remove('hidden');
     const e = ev || {};
     tt.style.left = (e.clientX || window.innerWidth / 2) + 'px';
@@ -523,14 +526,15 @@
     modal(`<h2>Share your bean2</h2>
       <p>This link carries your whole map inside it. It never touches a server — the part after the <code>#</code> stays in the browser — so anyone with the link can see your map, and nobody else can.</p>
       <div class="share-pv"><span class="pv-n">${n}</span><span class="pv-t">place${n === 1 ? '' : 's'} visited${who ? ', shared as <b>' + esc(who) + '</b>' : ''}<br><span style="color:var(--dimmer)">${url.length} characters — fits in a message</span></span></div>
-      <div class="namebox"><input id="shareName" type="text" placeholder="Your name (optional)" value="${esc(who || '')}" maxlength="40"><button class="btn" id="nameSave">Save</button></div>
+      ${guest ? '' : `<div class="namebox"><input id="shareName" type="text" placeholder="Your name (optional)" value="${esc(who || '')}" maxlength="40"><button class="btn" id="nameSave">Save</button></div>`}
       <div class="sharebox"><input id="shareUrl" readonly value="${esc(url)}"><button class="btn primary" id="copyUrl">Copy</button></div>
       <p style="font-size:12px;color:var(--dimmer);margin-top:14px">Whoever opens it sees your map with an <b>Add to mine</b> button — their own map stays untouched until they press it.</p>`);
     $('#copyUrl').addEventListener('click', () => {
       const input = $('#shareUrl');
       navigator.clipboard.writeText(input.value).then(() => toast('Link copied.'), () => { input.select(); toast('Press ⌘C / Ctrl+C to copy.'); });
     });
-    $('#nameSave').addEventListener('click', () => { S.name($('#shareName').value); showShare(); toast('Saved.'); });
+    const saveName = $('#nameSave');
+    if (saveName) saveName.addEventListener('click', () => { S.name($('#shareName').value); showShare(); toast('Saved.'); });
   }
 
   function showAbout() {
@@ -634,6 +638,15 @@
 
   renderAll();
   wire();
+
+  /* Two tabs each hold the whole map in memory and write all of it on every
+   * change, so the last one to save wins. Following the other tab's write
+   * keeps them in step instead. */
+  window.addEventListener('storage', e => {
+    if (e.key && e.key !== 'bean2.v1') return;
+    S.load();
+    if (!guest) { renderAll(); M.paint(); if (ui.selected) openDetail(ui.selected); }
+  });
 
   /* a globe that spins on its own is exactly what "reduce motion" means */
   if (matchMedia('(prefers-reduced-motion:reduce)').matches) {

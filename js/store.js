@@ -11,13 +11,36 @@ window.Bean2Store = (function () {
 
   let data = { v: 1, name: '', places: {}, updated: 0 };
 
+  // Years come in from backup files and share links, and end up in the page.
+  // Anything that is not a plain year in range is dropped here, once, rather
+  // than trusted by every screen that shows it.
+  const YEAR_MIN = 1900, YEAR_MAX = 2155;
+  function cleanYear(y) {
+    const n = Math.trunc(Number(y));
+    return Number.isFinite(n) && n >= YEAR_MIN && n <= YEAR_MAX ? n : null;
+  }
+  function cleanPlace(p) {
+    if (!p || (p.s !== 'been' && p.s !== 'want')) return null;
+    const y = p.s === 'been' ? cleanYear(p.y) : null;
+    return y ? { s: p.s, y } : { s: p.s };
+  }
+
   /* ── persistence ─────────────────────────────────────────────── */
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const d = JSON.parse(raw);
-        if (d && d.places) data = Object.assign(data, d);
+        if (d && d.places) {
+          data = Object.assign(data, d);
+          data.name = String(data.name || '').slice(0, 40);
+          const clean = {};
+          for (const id in data.places) {
+            const p = cleanPlace(data.places[id]);
+            if (p) clean[id] = p;
+          }
+          data.places = clean;
+        }
       }
     } catch (e) { /* private mode, disabled storage — run in memory */ }
     return data;
@@ -40,7 +63,7 @@ window.Bean2Store = (function () {
       const p = data.places[id] || {};
       p.s = status;
       if (year === undefined) { if (status !== 'been') delete p.y; }
-      else if (year) p.y = year; else delete p.y;
+      else { const y = cleanYear(year); if (y) p.y = y; else delete p.y; }
       data.places[id] = p;
     }
     save();
@@ -52,7 +75,8 @@ window.Bean2Store = (function () {
   function setYear(id, year) {
     const p = data.places[id];
     if (!p || p.s !== 'been') return;
-    if (year) p.y = year; else delete p.y;
+    const y = cleanYear(year);
+    if (y) p.y = y; else delete p.y;
     save();
   }
 
@@ -63,11 +87,11 @@ window.Bean2Store = (function () {
   function merge(places) {
     let added = 0;
     for (const id in places) {
-      const p = places[id];
-      if (!p || (p.s !== 'been' && p.s !== 'want')) continue;
+      const p = cleanPlace(places[id]);
+      if (!p) continue;
       const mine = data.places[id];
-      if (!mine) { data.places[id] = p.y ? { s: p.s, y: p.y } : { s: p.s }; added++; }
-      else if (mine.s === 'want' && p.s === 'been') { data.places[id] = p.y ? { s: 'been', y: p.y } : { s: 'been' }; added++; }
+      if (!mine) { data.places[id] = p; added++; }
+      else if (mine.s === 'want' && p.s === 'been') { data.places[id] = p; added++; }
       else if (mine.s === 'been' && !mine.y && p.y) mine.y = p.y;
     }
     save();
@@ -131,7 +155,7 @@ window.Bean2Store = (function () {
     for (const id of beens) {
       const y = raw[at++];
       if (y === undefined) break;
-      if (y && id) places[id].y = epoch + y;
+      if (y && id) { const yr = cleanYear(epoch + y); if (yr) places[id].y = yr; }
     }
     let who = '';
     if (at < raw.length) {
@@ -166,5 +190,5 @@ window.Bean2Store = (function () {
   }
 
   return { load, save, get, statusOf, yearOf, set, toggle, setYear, name, all, clear,
-           merge, encode, decode, toJSON, fromJSON };
+           merge, encode, decode, toJSON, fromJSON, cleanPlace };
 })();

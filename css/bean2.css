@@ -28,6 +28,7 @@ html,body{height:100%}
 body{
   margin:0;font-family:var(--font);color:var(--txt);background:var(--ink);
   overflow:hidden;-webkit-font-smoothing:antialiased;
+  height:100%;display:flex;flex-direction:column;
   background-image:
     radial-gradient(1100px 620px at 76% -10%,rgba(46,230,160,.13),transparent 62%),
     radial-gradient(900px 540px at 8% 104%,rgba(178,140,255,.12),transparent 60%);
@@ -95,7 +96,7 @@ input,select{font:inherit;color:inherit}
 .mi-sep{height:1px;background:var(--line);margin:5px 8px}
 
 /* ─────────────────────────── layout ─────────────────────────── */
-#main{display:flex;height:calc(100% - 58px);position:relative}
+#main{display:flex;flex:1 1 auto;min-height:0;position:relative}
 #stage{position:relative;flex:1 1 auto;min-width:0;overflow:hidden}
 #globeViz{position:absolute;inset:0}
 #globeViz canvas{display:block}
@@ -290,7 +291,7 @@ input,select{font:inherit;color:inherit}
 .share-pv .pv-t{font-size:12.5px;color:var(--dim);line-height:1.5}
 
 /* ─────────────────────────── shared-view banner ─────────────────────────── */
-#guest{display:flex;align-items:center;gap:10px;padding:9px 14px;background:linear-gradient(90deg,rgba(178,140,255,.18),rgba(46,230,160,.12));
+#guest{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:9px 14px;background:linear-gradient(90deg,rgba(178,140,255,.18),rgba(46,230,160,.12));
   border-bottom:1px solid var(--line2);font-size:13px}
 #guest b{font-weight:700}
 #guest .g-sp{flex:1}
@@ -319,7 +320,7 @@ input,select{font:inherit;color:inherit}
   .brand-txt{display:none}
   .seg button{padding:6px 10px;font-size:12px}
   .btn{padding:7px 12px}
-  #main{display:block;height:calc(100% - 54px)}
+  #main{display:block;flex:1 1 auto;min-height:0}
   #stage{position:absolute;inset:0}
   #panel{
     position:absolute;left:0;right:0;bottom:0;width:auto;flex:none;z-index:70;
@@ -341,10 +342,13 @@ input,select{font:inherit;color:inherit}
   body.card-open #panelToggle{display:none}
 }
 @media (max-width:460px){
-  .bar-mid{position:absolute;top:54px;left:8px;right:8px;z-index:55}
+  #bar{flex-wrap:wrap;height:auto;padding:0 10px 9px}
+  #bar .brand,#bar .bar-right{padding-top:8px}
+  .bar-mid{order:3;flex:0 0 100%}
   #searchWrap{width:100%}
   #search{height:36px;background:rgba(9,15,26,.9);border-color:var(--line2)}
   #legend{display:none}
-  #stageHint{top:100px}
+  #guest{flex-wrap:wrap;gap:8px;padding:8px 12px}
+  #guest .g-sp{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

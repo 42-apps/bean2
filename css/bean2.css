@@ -182,6 +182,10 @@ input,select{font:inherit;color:inherit}
 
 .row{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:10px;width:100%;text-align:left}
 .row:hover{background:rgba(255,255,255,.055)}
+.row:focus-visible,.sr:focus-visible,.tab:focus-visible,.chip:focus-visible,.act:focus-visible,
+.mk:focus-visible,.btn:focus-visible,.icon:focus-visible,.seg button:focus-visible,.mi:focus-visible{
+  outline:2px solid var(--been);outline-offset:1px}
+.row{cursor:pointer}
 .row.sel{background:rgba(255,255,255,.09)}
 .row .fl{font-size:17px;width:23px;text-align:center;flex:0 0 auto}
 .row .nm{flex:1;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

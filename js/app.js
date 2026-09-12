@@ -1,6 +1,6 @@
 /* app.js — bean2 */
 (function () {
-  const VERSION = '0.1.0';
+  const VERSION = '0.1.1';
   const PLACES = window.BEAN2_PLACES || [];
   const BY_ID = Object.fromEntries(PLACES.map(p => [p.id, p]));
   const TOTAL = PLACES.length;
@@ -158,7 +158,7 @@
   function rowHTML(p, rec) {
     const s = rec ? rec.s : '';
     const tag = p.status === 'un' ? '' : `<span class="tag">${p.status === 'territory' ? (p.sov ? esc(shortSov(p.sov)) : 'terr.') : p.status === 'observer' ? 'observer' : 'disputed'}</span>`;
-    return `<div class="row ${s === 'been' ? 'is-been' : ''} ${ui.selected === p.id ? 'sel' : ''}" data-id="${p.id}">
+    return `<div class="row ${s === 'been' ? 'is-been' : ''} ${ui.selected === p.id ? 'sel' : ''}" data-id="${p.id}" role="button" tabindex="0" aria-label="${esc(p.name)}${s === 'been' ? ', been there' : s === 'want' ? ', want to go' : ''}">
       <span class="fl">${p.flag || '🏳️'}</span>
       <span class="nm">${esc(p.name)}</span>
       ${rec && rec.y ? `<span class="yr">${rec.y}</span>` : ''}${tag}
@@ -381,6 +381,14 @@
         return;
       }
       select(id);
+    });
+
+    el('list').addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const row = e.target.closest('.row');
+      if (!row || e.target.closest('.mk')) return;
+      e.preventDefault();
+      select(row.dataset.id);
     });
 
     /* tabs */
@@ -626,6 +634,12 @@
 
   renderAll();
   wire();
+
+  /* a globe that spins on its own is exactly what "reduce motion" means */
+  if (matchMedia('(prefers-reduced-motion:reduce)').matches) {
+    const stop = setInterval(() => { if (window.globe) { window.globe.controls().autoRotate = false; clearInterval(stop); } }, 200);
+    setTimeout(() => clearInterval(stop), 8000);
+  }
 
   /* on a touch screen you tap, you don't click */
   if (matchMedia('(hover:none)').matches) {

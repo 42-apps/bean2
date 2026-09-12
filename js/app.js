@@ -1,6 +1,6 @@
 /* app.js — bean2 */
 (function () {
-  const VERSION = '0.1.1';
+  const VERSION = '0.1.2';
   const PLACES = window.BEAN2_PLACES || [];
   const BY_ID = Object.fromEntries(PLACES.map(p => [p.id, p]));
   const TOTAL = PLACES.length;

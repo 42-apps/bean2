@@ -75,7 +75,14 @@ window.Bean2Store = (function () {
   }
 
   /* ── share codes ─────────────────────────────────────────────── */
-  // [1][N lo][N hi][2 bits per slot][one year byte per "been" slot][name]
+  // [version][N lo][N hi][2 bits per slot][one year byte per "been" slot][name]
+  //
+  // A year byte of 0 means "no year given", so the epoch has to sit one year
+  // below the earliest year anyone can pick or 1900 would be indistinguishable
+  // from blank. Version 1 got that wrong and used 1900 itself; links written
+  // then are still read with the old epoch, which is what the version is for.
+  const VERSION = 2, EPOCH = { 1: 1900, 2: 1899 };
+
   function encode(places, who) {
     const N = ORDER.length;
     const bits = new Uint8Array(Math.ceil(N / 4));
@@ -86,11 +93,11 @@ window.Bean2Store = (function () {
       const code = p.s === 'been' ? BEEN : p.s === 'want' ? WANT : 0;
       if (!code) continue;
       bits[i >> 2] |= code << ((i & 3) * 2);
-      if (code === BEEN) years.push(p.y ? Math.max(0, Math.min(255, p.y - 1900)) : 0);
+      if (code === BEEN) years.push(p.y ? Math.max(1, Math.min(255, p.y - EPOCH[VERSION])) : 0);
     }
     const nm = new TextEncoder().encode((who || '').slice(0, 40));
     const out = new Uint8Array(3 + bits.length + years.length + 1 + nm.length);
-    out[0] = 1; out[1] = N & 255; out[2] = N >> 8;
+    out[0] = VERSION; out[1] = N & 255; out[2] = N >> 8;
     out.set(bits, 3);
     out.set(years, 3 + bits.length);
     out[3 + bits.length + years.length] = nm.length;
@@ -101,7 +108,8 @@ window.Bean2Store = (function () {
   function decode(code) {
     let raw;
     try { raw = unb64url(code); } catch (e) { return null; }
-    if (!raw || raw[0] !== 1 || raw.length < 4) return null;
+    const epoch = EPOCH[raw && raw[0]];
+    if (!raw || !epoch || raw.length < 4) return null;
     const N = raw[1] | (raw[2] << 8);
     const nBits = Math.ceil(N / 4);
     if (raw.length < 3 + nBits) return null;
@@ -110,17 +118,20 @@ window.Bean2Store = (function () {
     for (let i = 0; i < N; i++) {
       const code2 = (raw[3 + (i >> 2)] >> ((i & 3) * 2)) & 3;
       if (!code2) continue;
-      const id = ORDER[i];
-      if (!id) continue;                                  // slot from a newer build
-      if (code2 === BEEN) { places[id] = { s: 'been' }; beens.push(id); }
-      else if (code2 === WANT) places[id] = { s: 'want' };
+      // A slot can be unreadable here: null for a place this build retired, or
+      // undefined for one a newer build appended. Such a slot still carries a
+      // year byte, so it has to keep its place in `beens` — dropping it would
+      // shift every later year by one and swallow the name at the end.
+      const id = ORDER[i] || null;
+      if (code2 === BEEN) { beens.push(id); if (id) places[id] = { s: 'been' }; }
+      else if (code2 === WANT && id) places[id] = { s: 'want' };
     }
     // year bytes line up with the "been" slots we just walked, in order
     let at = 3 + nBits;
     for (const id of beens) {
       const y = raw[at++];
       if (y === undefined) break;
-      if (y) places[id].y = 1900 + y;
+      if (y && id) places[id].y = epoch + y;
     }
     let who = '';
     if (at < raw.length) {

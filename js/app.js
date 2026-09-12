@@ -1,6 +1,6 @@
 /* app.js — bean2 */
 (function () {
-  const VERSION = '0.1.4';
+  const VERSION = '0.1.5';
   const PLACES = window.BEAN2_PLACES || [];
   const BY_ID = Object.fromEntries(PLACES.map(p => [p.id, p]));
   const TOTAL = PLACES.length;
@@ -220,17 +220,20 @@
       sel.addEventListener('change', () => { S.setYear(id, sel.value ? +sel.value : null); renderAll(); M.paint(); });
       card.querySelectorAll('.ystep').forEach(b => b.addEventListener('click', () => {
         const cur = +sel.value || YEAR_NOW;
-        const next = Math.max(1900, Math.min(YEAR_NOW, cur + (+b.dataset.step)));
+        const next = Math.max(YEAR_FIRST, Math.min(YEAR_NOW, cur + (+b.dataset.step)));
         sel.value = String(next); S.setYear(id, next); renderAll(); M.paint();
       }));
     }
     M.highlight(id);
     renderList();
   }
+  // Every year down to 1900 gets its own option: with decade shortcuts in the
+  // list the − and + steppers could land on a year that had none, blanking the
+  // select and then jumping back to this year.
+  const YEAR_FIRST = 1900;
   function yearOptions(y) {
     let html = `<option value="">— add a year —</option>`;
-    for (let i = YEAR_NOW; i >= 1940; i--) html += `<option value="${i}"${y === i ? ' selected' : ''}>${i}</option>`;
-    for (let i = 1930; i >= 1900; i -= 10) html += `<option value="${i}"${y === i ? ' selected' : ''}>${i}s</option>`;
+    for (let i = YEAR_NOW; i >= YEAR_FIRST; i--) html += `<option value="${i}"${y === i ? ' selected' : ''}>${i}</option>`;
     return html;
   }
   // The card is absolutely positioned against the document, and the document
@@ -354,7 +357,10 @@
     M.focus(id);
   }
 
-  function onMapClick(id, ev) { if (id) openDetail(id, ev); }
+  function onMapClick(id, ev) {
+    el('stageHint').classList.add('gone');     // a tap is not a hover
+    if (id) openDetail(id, ev);
+  }
   function onMapHover(id, ev) {
     if (matchMedia('(hover:none)').matches) return;   // a tap isn't a hover
     const tt = el('tooltip');
@@ -379,7 +385,11 @@
       if (mark) {
         if (guest) { toast('This is a shared map — add it to yours first.'); return; }
         S.toggle(id, mark.dataset.mark);
+        const which = mark.dataset.mark;
         renderAll(); M.paint();
+        // renderList replaced the row the click came from, so put the focus back
+        const again = document.querySelector(`.row[data-id="${id}"] .mk.${which}`);
+        if (again && document.activeElement !== document.body) again.focus();
         if (ui.selected === id) openDetail(id);
         return;
       }
@@ -397,7 +407,7 @@
     /* tabs */
     document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
       ui.tab = t.dataset.tab;
-      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+      document.querySelectorAll('.tab').forEach(x => { x.classList.toggle('on', x === t); x.setAttribute('aria-pressed', x === t); });
       el('tabPlaces').classList.toggle('hidden', ui.tab !== 'places');
       el('tabTimeline').classList.toggle('hidden', ui.tab !== 'timeline');
       el('tabStats').classList.toggle('hidden', ui.tab !== 'stats');
@@ -490,6 +500,12 @@
     /* keyboard */
     document.addEventListener('keydown', e => {
       if (e.target.matches('input,select,textarea')) return;
+      // Cmd+W is "close the tab", not "want to go".
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!el('modal').classList.contains('hidden')) {
+        if (e.key === 'Escape') el('modal').classList.add('hidden');
+        return;
+      }
       if (e.key === 'Escape') { closeDetail(); el('modal').classList.add('hidden'); }
       if (e.key === '/') { e.preventDefault(); search.focus(); }
       if (e.key === 'g') el('viewGlobe').click();
@@ -504,7 +520,8 @@
     /* click on empty map closes the card */
     el('stage').addEventListener('click', e => {
       if (e.target.closest('#detail') || e.target.closest('.flat-hit') || e.target.closest('.gdot')) return;
-      if (e.target.id === 'flatViz' || e.target.tagName === 'CANVAS') closeDetail();
+      if (e.target.id === 'flatViz' || e.target.tagName === 'CANVAS'
+          || e.target.classList.contains('flat-ocean') || e.target.classList.contains('flat-graticule')) closeDetail();
     });
 
     el('modalX').addEventListener('click', () => el('modal').classList.add('hidden'));
@@ -588,24 +605,34 @@
         const got = S.fromJSON(t);
         const added = S.merge(got.places);
         if (got.name && !S.name()) S.name(got.name);
-        if (guest) leaveGuest(); else { renderAll(); M.paint(); }
+        if (guest) leaveGuest();
+        else { renderAll(); M.paint(); if (ui.selected) openDetail(ui.selected); }
         toast(added ? `Imported ${added} place${added === 1 ? '' : 's'}.` : 'Nothing new in that file.');
       }).catch(() => toast('That file isn’t a bean2 backup.'));
     };
     input.click();
   }
   function doReset() {
-    const c = counts();
-    modal(`<h2>Clear everything?</h2>
-      <p>This wipes all ${c.been + c.want} marks from this browser. There's no undo, and no copy anywhere else.</p>
+    // counts() follows whatever map is on screen, and in guest mode that is a
+    // stranger's. Clearing has to count — and then show — your own.
+    const mine = Object.values(S.all());
+    const n = mine.length;
+    if (!n) { toast(guest ? 'Your own map is empty — nothing to clear.' : 'Nothing to clear yet.'); return; }
+    modal(`<h2>Clear your own map?</h2>
+      ${guest ? '<p style="color:var(--want)">You\u2019re looking at someone else\u2019s map right now. This does not touch theirs — it wipes <b>yours</b>.</p>' : ''}
+      <p>This wipes all ${n} mark${n === 1 ? '' : 's'} from this browser. There's no undo, and no copy anywhere else.</p>
       <div class="d-acts" style="margin-top:18px">
         <button class="act" id="rNo">Keep my map</button>
-        <button class="act" id="rYes" style="background:#a13a3a;border-color:transparent;color:#fff">Yes, clear it</button>
+        <button class="act" id="rYes" style="background:#a13a3a;border-color:transparent;color:#fff">Yes, clear my ${n}</button>
       </div>
       <p style="font-size:12px;color:var(--dimmer);margin-top:14px">Want a copy first? Close this and choose <b>Export my data</b>.</p>`);
     $('#rNo').addEventListener('click', () => el('modal').classList.add('hidden'));
     $('#rYes').addEventListener('click', () => {
-      S.clear(); el('modal').classList.add('hidden'); closeDetail(); renderAll(); M.paint(); toast('Cleared.');
+      S.clear();
+      el('modal').classList.add('hidden');
+      if (guest) leaveGuest();            // otherwise nothing on screen changes
+      else { closeDetail(); renderAll(); M.paint(); }
+      toast('Cleared.');
     });
   }
 
@@ -638,6 +665,15 @@
 
   renderAll();
   wire();
+
+  /* A full or blocked localStorage fails quietly, and a whole session's marks
+   * then vanish on reload. Better to say it once, the first time. */
+  let warnedNoSave = false;
+  S.onSaveFail(() => {
+    if (warnedNoSave) return;
+    warnedNoSave = true;
+    toast('This browser isn\u2019t saving — your marks will be lost when you close the tab. Export a backup.');
+  });
 
   /* If load() could not read part of the saved map, say so rather than letting
    * it look like the marks simply went missing. */

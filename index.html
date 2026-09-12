@@ -11,7 +11,7 @@
 <meta property="og:type" content="website">
 <link rel="icon" href="icons/bean2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon180.png">
-<link rel="stylesheet" href="css/bean2.css?v=202609122322">
+<link rel="stylesheet" href="css/bean2.css?v=202609122327">
 </head>
 <body>
 
@@ -34,7 +34,7 @@
     <div id="searchWrap">
       <svg class="mag" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
       <input id="search" type="search" placeholder="Search 257 places…" autocomplete="off" spellcheck="false" aria-label="Search places">
-      <div id="searchResults" class="hidden" role="listbox"></div>
+      <div id="searchResults" class="hidden"></div>
     </div>
   </div>
 
@@ -95,10 +95,10 @@
       </div>
     </div>
 
-    <nav class="tabs" role="tablist">
-      <button class="tab on" data-tab="places" role="tab">Places</button>
-      <button class="tab" data-tab="timeline" role="tab">Timeline</button>
-      <button class="tab" data-tab="stats" role="tab">Stats</button>
+    <nav class="tabs" aria-label="View">
+      <button class="tab on" data-tab="places" aria-pressed="true">Places</button>
+      <button class="tab" data-tab="timeline" aria-pressed="false">Timeline</button>
+      <button class="tab" data-tab="stats" aria-pressed="false">Stats</button>
     </nav>
 
     <div class="tab-body" id="tabPlaces">
@@ -110,7 +110,7 @@
         <span class="filters-sp"></span>
         <button class="chip ghost" id="sortBtn" title="Change grouping">By region</button>
       </div>
-      <div id="list" class="list" role="list"></div>
+      <div id="list" class="list"></div>
     </div>
 
     <div class="tab-body hidden" id="tabTimeline"></div>
@@ -129,10 +129,10 @@
 <div id="toast" class="hidden"></div>
 <input type="file" id="fileIn" accept="application/json" hidden>
 
-<script src="data/places.js?v=202609122322"></script>
+<script src="data/places.js?v=202609122327"></script>
 <script src="lib/globe.gl.min.js"></script>
-<script src="js/store.js?v=202609122322"></script>
-<script src="js/maps.js?v=202609122322"></script>
-<script src="js/app.js?v=202609122322"></script>
+<script src="js/store.js?v=202609122327"></script>
+<script src="js/maps.js?v=202609122327"></script>
+<script src="js/app.js?v=202609122327"></script>
 </body>
 </html>

@@ -38,7 +38,7 @@ window.Bean2Store = (function () {
         const d = JSON.parse(raw);
         if (d && d.places) {
           data = Object.assign(data, d);
-          data.name = String(data.name || '').slice(0, 40);
+          data.name = trim40(data.name || '');
           const clean = {};
           for (const id in d.places) {
             const p = cleanPlace(d.places[id]);
@@ -55,10 +55,16 @@ window.Bean2Store = (function () {
     } catch (e) { /* private mode, disabled storage — run in memory */ }
     return data;
   }
+  let onSaveFail = null;
   function save() {
     data.updated = Date.now();
     try { localStorage.setItem(KEY, JSON.stringify(data)); }
-    catch (e) { return false; }
+    catch (e) {
+      // Full, or blocked: the marks are still in memory but will not outlive
+      // the tab, and silence here reads as "it saved".
+      if (onSaveFail) try { onSaveFail(e); } catch (e2) { /* never break a save path */ }
+      return false;
+    }
     return true;
   }
 
@@ -90,7 +96,10 @@ window.Bean2Store = (function () {
     save();
   }
 
-  const name = v => { if (v === undefined) return data.name || ''; data.name = v.slice(0, 40); save(); };
+  // Slicing UTF-16 at 40 can cut an emoji in half and leave U+FFFD in a name
+  // someone is about to share.
+  const trim40 = v => Array.from(String(v)).slice(0, 40).join('');
+  const name = v => { if (v === undefined) return data.name || ''; data.name = trim40(v); save(); };
   const all = () => data.places;
   const clear = () => { data = { v: 1, name: data.name, places: {}, updated: Date.now() }; save(); };
 
@@ -129,7 +138,7 @@ window.Bean2Store = (function () {
       bits[i >> 2] |= code << ((i & 3) * 2);
       if (code === BEEN) years.push(p.y ? Math.max(1, Math.min(255, p.y - EPOCH[VERSION])) : 0);
     }
-    const nm = new TextEncoder().encode((who || '').slice(0, 40));
+    const nm = new TextEncoder().encode(trim40(who || ''));
     const out = new Uint8Array(3 + bits.length + years.length + 1 + nm.length);
     out[0] = VERSION; out[1] = N & 255; out[2] = N >> 8;
     out.set(bits, 3);
@@ -201,5 +210,6 @@ window.Bean2Store = (function () {
 
   return { load, save, get, statusOf, yearOf, set, toggle, setYear, name, all, clear,
            merge, encode, decode, toJSON, fromJSON, cleanPlace,
-           wasRescued: () => rescued, rescuedKey: KEY + '.rescued' };
+           wasRescued: () => rescued, rescuedKey: KEY + '.rescued',
+           onSaveFail: fn => { onSaveFail = fn; } };
 })();

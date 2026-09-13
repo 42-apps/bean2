@@ -1,6 +1,6 @@
 /* app.js — bean2 */
 (function () {
-  const VERSION = '0.1.5';
+  const VERSION = '0.1.6';
   const PLACES = window.BEAN2_PLACES || [];
   const BY_ID = Object.fromEntries(PLACES.map(p => [p.id, p]));
   const TOTAL = PLACES.length;
@@ -124,8 +124,55 @@
       return true;
     });
   }
-  const matches = (p, q) => p.name.toLowerCase().includes(q) || p.id.toLowerCase() === q ||
-    (p.sov || '').toLowerCase().includes(q) || (p.sub || '').toLowerCase().includes(q) || p.region.toLowerCase().includes(q);
+  /* ── search ──────────────────────────────────────────────────
+   * People type the name they know, not the name in the list: "St Helena"
+   * for Saint Helena, "Turkey" for Türkiye, "Holland", "Burma", "USA".
+   * Accents come off, "St" becomes "Saint", and the rest is this table. */
+  const ALIAS = {
+    US: 'usa u.s. america', GB: 'uk britain great britain england scotland wales northern ireland',
+    NL: 'holland', MM: 'burma', TR: 'turkey', CI: 'ivory coast', SZ: 'swaziland',
+    CV: 'cape verde', CZ: 'czech republic bohemia', TL: 'east timor', IR: 'persia',
+    TH: 'siam', AE: 'uae emirates dubai abu dhabi', CD: 'drc zaire congo kinshasa',
+    CG: 'congo brazzaville', MO: 'macao', LK: 'ceylon', TW: 'formosa roc',
+    FO: 'faeroe islands', VA: 'holy see rome', GR: 'hellas', JP: 'nippon',
+    DE: 'deutschland', ES: 'espana', IT: 'italia', SE: 'sverige', FI: 'suomi',
+    NO: 'norge', DK: 'danmark', PL: 'polska', HU: 'magyarorszag', AT: 'osterreich',
+    CH: 'schweiz suisse svizzera', BE: 'belgie belgique', PT: 'portugal lisbon',
+    IE: 'eire', IS: 'island reykjavik', HR: 'hrvatska', RS: 'srbija',
+    ME: 'crna gora', MK: 'macedonia', XK: 'kosova', BA: 'bosnia',
+    'PS-G': 'palestine gaza strip', 'PS-W': 'palestine judea samaria',
+    IL: 'israel', EH: 'sahrawi polisario spanish sahara', XSL: 'somaliland hargeisa',
+    XNC: 'trnc turkish republic of northern cyprus', XTB: 'xizang lhasa',
+    XAB: 'apsny sukhumi', XSO: 'tskhinvali', XTR: 'pridnestrovie tiraspol',
+    SH: 'saint helena ascension tristan da cunha gough jamestown',
+    BQ: 'bonaire sint eustatius saba', SJ: 'spitsbergen longyearbyen',
+    FK: 'malvinas', GS: 'south georgia south sandwich', TF: 'kerguelen crozet adelie',
+    UM: 'wake midway johnston baker howland jarvis palmyra kingman navassa',
+    IO: 'chagos diego garcia', CX: 'christmas', CC: 'cocos keeling',
+    KP: 'dprk north korea', KR: 'rok south korea', CN: 'prc mainland china',
+    HK: 'hong kong sar', RU: 'russian federation soviet', BY: 'byelorussia',
+    MD: 'moldavia', KZ: 'kazakstan', KG: 'kirghizia', MV: 'maldive',
+    BN: 'brunei darussalam', TT: 'trinidad tobago', AG: 'antigua barbuda',
+    KN: 'st kitts nevis', VC: 'st vincent grenadines', ST: 'sao tome principe',
+    GQ: 'spanish guinea', BF: 'upper volta', BJ: 'dahomey', ZW: 'rhodesia',
+    ZM: 'northern rhodesia', MW: 'nyasaland', TZ: 'tanganyika zanzibar',
+    ET: 'abyssinia', NA: 'south west africa', CF: 'car', DO: 'dr',
+    AQ: 'south pole', SB: 'solomons', FM: 'micronesia caroline',
+  };
+
+  // Accents off, "St" out, punctuation gone — so "Cote dIvoire", "Turkiye"
+  // and "St. Lucia" all land on the right row.
+  const norm = s => String(s).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[’'`]/g, '').replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\bst\b/g, 'saint')
+    .trim();
+
+  const HAY = Object.fromEntries(PLACES.map(p => [p.id,
+    norm([p.name, ALIAS[p.id] || '', p.sov || '', p.sub || '', p.region].join(' '))]));
+
+  const matches = (p, q) => HAY[p.id].includes(norm(q)) || p.id.toLowerCase() === q.toLowerCase();
 
   function renderList() {
     const d = live();
